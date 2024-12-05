@@ -1,0 +1,104 @@
+---
+title: "MTH442 Assignment 2"
+author: "Kaushik Raj V Nadar (208160499)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: pdf_document
+---
+
+```{r setup, include=TRUE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load the required packages
+library(ggplot2)
+library(astsa)
+library(dplyr)
+library(tidyr)
+```
+
+# Problem 4
+
+![](problem4.png)
+
+```{r}
+u = ARMAacf(ar=c(0,0.25), lag.max=25)
+plot(0:25, u, type="h", xlab="Lag", ylab="ACF")
+points(0:25, u)
+abline(h=0)
+```
+
+```{r}
+u = ARMAacf(ar=c(0,-.9), lag.max=25)
+plot(0:25, u, type="h", xlab="Lag", ylab="ACF")
+points(0:25, u)
+abline(h=0)
+```
+
+\newpage
+
+# Problem 6
+
+![](problem6.png)
+
+```{r}
+# Generate ACF values for the models
+u1 <- ARMAacf(0.6, 0.9, lag.max=10)
+u2 <- ARMAacf(0.6, 0, lag.max=10)
+u3 <- ARMAacf(0, 0.9, lag.max=10)
+
+# Create a data frame for ggplot
+df <- data.frame(
+  Lag = 0:10,
+  ARMA = u1,
+  AR = u2,
+  MA = u3
+) %>%
+  pivot_longer(cols = c("ARMA", "AR", "MA"), names_to = "Model", values_to = "ACF")
+
+# Plot using ggplot
+ggplot(df, aes(x = Lag, y = ACF, color = Model)) +
+  geom_line(aes(linetype = Model)) +
+  geom_point() +
+  labs(title = "ACF of ARMA, AR, and MA Models", x = "Lag", y = "ACF") +
+  scale_color_manual(values = c("black", "red", "blue")) +
+  theme_minimal() +
+  theme(legend.position = "top")
+```
+
+\newpage
+
+# Problem 7
+
+![](problem7.png)
+
+```{r}
+ar = arima.sim(list(order=c(1,0,0), ar=.6), n=1000)
+acf2(ar, main="ACF and PACF for AR(1) process")
+```
+
+### Comments on **AR(1)**:
+
+-   **ACF**: The ACF plot shows a gradual decrease or tapering off of the autocorrelation coefficients as the lag increases. This pattern is characteristic of an autoregressive (AR) process, where the current value of the series is dependent on its past values.
+
+-   **PACF**: The PACF plot exhibits a sharp cutoff after the first lag, indicating that the partial autocorrelations beyond the first lag are effectively zero. This is a typical signature of an AR(1) or first-order autoregressive process, where the current value of the series is linearly dependent only on the immediately preceding value.
+
+```{r}
+ma = arima.sim(list(order=c(0,0,1), ma=.9), n=1000)
+acf2(ma, main="ACF and PACF for MA(1) process")
+```
+
+### Comments on **MA(1)**:
+
+-   **ACF**: The ACF plot exhibits a sharp cutoff after the first lag, with the autocorrelation coefficients becoming effectively zero beyond this point. This pattern is characteristic of a moving average (MA) process, where the current value of the series is dependent on the immediate past random shocks or errors.
+
+-   **PACF**: The PACF plot shows a gradual tapering off of the partial autocorrelation coefficients as the lag increases. This behavior is consistent with an MA process, where the current value depends linearly on the immediately preceding random shock or error term.
+
+```{r}
+arma = arima.sim(list(order=c(1,0,1), ar=.6, ma=.9), n=1000)
+acf2(arma, main="ACF and PACF for ARMA(1,1)")
+```
+
+### Comments on **ARMA(1,1)**:
+
+-   **ACF**: The ACF plot shows a gradual tapering off of the autocorrelation coefficients as the lag increases. This pattern is characteristic of a combined autoregressive and moving average (ARMA) process, where the current value of the series is dependent on both its past values and past random shocks or errors.
+
+-   **PACF**: The PACF plot also exhibits a gradual decline in the partial autocorrelation coefficients as the lag increases. This behavior is consistent with an ARMA process, where the current value depends linearly on both its own past values and the immediately preceding random shocks or error terms.

@@ -1,0 +1,68 @@
+---
+title: "MTH442 Assignment 1"
+output: pdf_document
+date: "2024-09-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 7
+
+Johnson & Johnson data market share price data is given as jj within the R package astsa.
+We consider the transformation Xt = log(Yt). In our case, time t is in quarters (1960.00, 1960.25, . . .)
+
+so one unit of time is a year. Fit the regression model
+
+```{r}
+library(astsa)
+trend = time(jj) - 1970 # helps to ‘center’ time
+Q = factor(rep(1:4,21)) # make (Q)uarter factors
+reg = lm(log(jj)~0 + trend + Q, na.action=NULL) # without intercept
+```
+
+(A) If the model is correct, what is the estimated average annual increase in the logged earnings per share? 
+
+(B) If the model is correct, does the average logged earnings rate increase or decrease from the third quarter to the fourth quarter? And, by what percentage does it increase or decrease? 
+
+```{r}
+# Extract the coefficients
+beta_estimate <- coef(reg)[1]
+alpha3 <- coef(reg)["Q3"]
+alpha4 <- coef(reg)["Q4"]
+
+# Calculate the percentage change from Q3 to Q4
+percentage_change <- (alpha4 - alpha3)
+
+# Output the results
+cat("Estimated average annual increase in logged earnings per share:", beta_estimate, "\n")
+cat("Percentage change from Q3 to Q4:", percentage_change*100, "%\n")
+```
+
+(C) Graph the data, Xt, and superimpose the fitted values, say Xbt, on the graph. Examine the residuals, Xt - Xbt, and state your conclusions. Does it appear that the model fits the data well (do the residuals look white)?
+
+```{r}
+plot(log(jj), type="o")
+lines(fitted(reg), col=2)
+```
+
+Plot of Residuals
+The residuals do not look white.
+```{r}
+plot.ts(resid(reg))
+```
+
+
+```{r}
+acf(resid(reg), 20)
+```
+
+
+# Conclusion
+
+Pattern in Residuals: The residuals should ideally be randomly scattered around zero with no apparent pattern if the model is a good fit. In your plot, the residuals show some variation over time, especially in the later years, where there seems to be more volatility. This suggests that the variance of the residuals increases over time, which could indicate heteroscedasticity (i.e., the variance of the error terms is not constant).
+
+Mean of Residuals: The residuals generally fluctuate around the zero line, which is good. However, there is a noticeable deviation from zero, especially before 1970, indicating that the model might not capture all the patterns in the data.
+
+Autocorrelation: If the residuals exhibit autocorrelation, it implies that the model has not captured some temporal dependencies. The plot doesn’t show an obvious pattern, but a formal test like the Durbin-Watson test or an autocorrelation plot (ACF) would be needed to confirm this.
