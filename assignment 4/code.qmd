@@ -1,0 +1,241 @@
+---
+title: "MTH442 Assignment 4"
+author: "Kaushik Raj V Nadar (208160499)"
+date: today
+format: pdf
+editor: visual
+---
+
+# Problem 3
+
+We discussed quarterly United States Gross National Product (GNP) data analysis in the lab. We said that AR(1) and MA(2) are two possible models for the differenced log GNP data. We discussed the model diagnostics for MA(2) model but also pointed out that AR(1) is preferable. Show the model diagnostics for AR(1) model. Repeat the diagnostics for ARMA(1, 2) model and compare the results.
+
+#### Plot the data
+
+```{r}
+library(astsa)
+plot(gnp)
+acf2(gnp, 50)
+```
+
+#### Plot Differenced Log GNP
+
+```{r}
+gnpgr = diff(log(gnp)) # growth rate
+plot(gnpgr)
+acf2(gnpgr, 24)
+```
+
+#### Model Diagnostics for AR(1)
+
+```{r}
+# Fit AR(1) model
+cat("\nAR(1) Model Diagnostics:\n")
+ar1_fit = sarima(gnpgr, 1, 0, 0)
+
+# Display AR(1) coefficients and standard errors
+cat("\nAR(1) Model Summary:\n")
+ar1_fit$ttable
+```
+
+The above figure displays a plot of the standardized residuals, the ACF of the residuals, a boxplot of the standardized residuals, and the p-values associated with the Q-statistic at lags H= 2 through H= 20.
+
+Like the MA(2) model, inspecting the time plot of standardized residuals in Figure 3.16 reveals no clear patterns. However, some outliers are apparent, with a few values exceeding 3 standard deviations in magnitude. The autocorrelation function (ACF) of these residuals does not indicate any deviation from the model assumptions, and the Q-statistics at the shown lags are not statistically significant. Additionally, the normal Q-Q plot of residuals suggests the assumption of normality is largely valid, aside from the presence of potential outliers.
+
+#### Model Diagnostics for ARMA(1,2)
+
+```{r}
+# Fit ARMA(1,2) model
+cat("\nARMA(1,2) Model Diagnostics:\n")
+arma12_fit = sarima(gnpgr, 1, 0, 2)
+
+# Display ARMA(1,2) coefficients and standard errors
+cat("\nARMA(1,2) Model Summary:\n")
+arma12_fit$ttable
+```
+
+The results are very similar to the AR(1) and MA(2). Q-Q plot here is a bit better than the previous cases with most of the residuals following the normality assumption.
+
+#### Comparing AR(1) and ARMA(1,2) using Information Criteria
+
+```{r}
+# Calculate AIC and BIC for AR(1)
+ar1_aic = ar1_fit$ICs[1]
+ar1_aicc = ar1_fit$ICs[2]
+ar1_bic = ar1_fit$ICs[3]
+
+# Calculate AIC and BIC for ARMA(1,2)
+arma12_aic = arma12_fit$ICs[1]
+arma12_aicc = arma12_fit$ICs[2]
+arma12_bic = arma12_fit$ICs[3]
+
+# Compare AIC and BIC
+cat("AR(1) AIC:", ar1_aic,  "AICc:", ar1_aicc, "BIC:", ar1_bic, "\n")
+cat("ARMA(1,2) AIC:", arma12_aic, "AICc:", arma12_aicc, "BIC:", arma12_bic, "\n")
+```
+
+We can see that the AIC, AICc, as well as BIC all prefer the AR(1) model over ARMA(1,2). The AR(1) can considered as the preferred model in this case. Moreover, pure auto-regressive models are easier to work with.
+
+# Problem 4
+
+Fit a seasonal ARIMA model of your choice to the unemployment data in **unemp** from the R package $astsa$. Use the estimated model to forecast the next 12 months.
+
+#### Plot the unemp data
+
+```{r}
+plot(unemp)
+```
+
+#### Plot the Differenced unemp
+
+```{r}
+plot(diff(unemp))
+```
+
+#### Plot Difference of Differenced unemp at lag 12
+
+Since the given data varies over months, thus there may be a seasonal pattern over months of a year. Therefore, it is reasonable to assume that Differencing at lag 12 may give us a stationary time with which can continue our analysis.
+
+```{r}
+plot(diff(diff(unemp),12))
+acf2(diff(diff(unemp), 12))
+```
+
+The ACF and PACF confirm our assumption of seasonal pattern. Here, we can observe the seasonal lags in the ACF cut oﬀ after lag 12, whereas the seasonal lags in the PACF tail oﬀ at lags 12, 24, 36, and so on. This indicates a clear SMA(1) pattern.
+
+#### Fit a SMA(1) model
+
+Now, wefit an SARIMA$(0,1,0) ×(0,1,1)_{12}$ to xt and look at the ACF and PACF of the residuals
+
+```{r}
+sma_fit <- sarima(unemp, 0,1,0, 0,1,1,12)
+
+# Extract residuals
+sma_residuals <- sma_fit$fit$residuals
+
+acf2(sma_residuals)
+```
+
+The within-season portion of the ACF gradually tapers off, while the PACF either cuts off at lag 2 or also tapers. These observations indicate that an AR(2) or ARMA(1,1) model could be suitable for the within-season component of the model.
+
+#### Fit SARIMA with AR(2) component
+
+SARIMA$(2,1,0) ×(0,1,1)_{12}$
+
+```{r}
+sarima_model <- sarima(unemp, 2, 1, 0, 0, 1, 1, 12)
+
+# Extract residuals
+residuals <- sarima_model$fit$residuals
+acf2(residuals)
+
+# Print MSE
+mse <- mean(residuals^2)
+mse
+```
+
+#### Fit SARIMA with ARMA(1,1) component
+
+SARIMA$(1,1,1) ×(0,1,1)_{12}$
+
+```{r}
+sarima_model <- sarima(unemp, 1, 1, 1, 0, 1, 1, 12)
+
+# Extract residuals
+residuals <- sarima_model$fit$residuals
+acf2(residuals)
+
+# Print MSE
+mse <- mean(residuals^2)
+mse
+```
+
+From the above two plots we can see that the first model is way better than the second one as the first one has MSE lower than the second model. Also the Q-statistic in the first model is not significant compared to the second which implies that the residuals are more likely to be white noise in the first case.
+
+Therefore, we prefer the first SARIMA model.
+
+### Forecasting
+
+Forecasting using both models for the next 12 months.
+
+```{r}
+# SARIMA(2,1,0) ×(0,1,1)12
+sarima.for(unemp, 12, 2, 1, 0, 0, 1, 1, 12)
+
+# SARIMA(1,1,1) ×(0,1,1)12
+sarima.for(unemp, 12, 1, 1, 1, 0, 1, 1, 12)
+```
+
+# Problem 5
+
+Fit an appropriate seasonal ARIMA model to the log-transformed Johnson and Johnson earnings series (**jj** from the R package $astsa$) discussed in Lecture 2. Use the estimated model to forecast the next 4 quarters.
+
+```{r}
+plot(diff(diff(log(jj)),4))
+acf2(diff(diff(log(jj)),4))
+sarima(log(jj),1,1,0,1,1,0,4)
+sarima.for(log(jj),4,1,1,0,1,1,0,4)
+```
+
+#### Plot the jj data
+
+```{r}
+plot(jj)
+```
+
+#### Apply Log transformation
+
+```{r}
+plot(log(jj))
+```
+
+#### Plot the Differenced log jj data to remove trend
+
+```{r}
+plot(diff(log(jj)))
+```
+
+#### Difference at lag 4 over the Differenced log data
+
+Since the data varies over quarters, there may be seasonal patterns over the quarters of each year.
+
+Thus we take difference over lag 4.
+
+```{r}
+plot(diff(diff(log(jj)), 4))
+acf2(diff(diff(log(jj)), 4))
+```
+
+The PACF reveals a large correlation at the seasonal lag 4, so an SAR(1) seems appropriate.
+
+#### Fit SAR(1)
+
+```{r}
+sar_model <- sarima(log(jj), 0,1,0, 1,1,0, 4)
+
+#Residuals
+residuals <- sar_model$fit$residuals
+acf2(residuals)
+```
+
+As the ACF and PACF of the residuals tails off at seasonal lag 4, this reveals an ARMA(1,1) correlation structure for the within the seasons.
+
+#### Fit SARIMA(1,1,0)x(1,1,0) and SARIMA(1,1,1)x(1,1,0) and compare them
+
+```{r}
+# SARIMA(1,1,0)x(1,1,0)4
+sarima_model1 <- sarima(log(jj), 1,1,0, 1,1,0, 4)
+sarima_model1$ICs[3]
+
+# SARIMA(1,1,1)x(1,1,0)4
+sarima_model2 <- sarima(log(jj), 1,1,1, 1,1,0, 4)
+sarima_model2$ICs[3]
+```
+
+Both the models perform well. Moreover, the second model has lower BIC, thus we prefer the SARIMA$(1,1,1)\times(1,1,0)_4$ model
+
+#### Forecasting
+
+```{r}
+sarima.for(log(jj), 4,1,1,1, 1,1,0, 4)
+```

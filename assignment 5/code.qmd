@@ -1,0 +1,75 @@
+---
+title: "MTH442 Assignment 5"
+author: "Kaushik Raj Nadar (208160499)"
+format: pdf
+editor: visual
+date: today
+---
+
+# Problem 3
+
+# ![](images/Q3.png)
+
+### Visualise the Varve Data
+
+```{r}
+library(astsa)
+
+x = log(varve[1:100])
+plot(x, type="o", ylab="log(varve)")
+```
+
+### Fit the IMA(1,1) Model
+
+```{r}
+model = sarima(x, 0,1,1 )
+```
+
+We can see that the residuals behave like white noise and the IMA(1,1) model fit is consistent with theory.
+
+Estimate of theta using IMA(1,1)
+
+```{r}
+model$fit$coef[1]
+```
+
+Estimate of Rho(1) using IMA(1,1)
+
+```{r}
+model$fit$coef[1]/(1+model$fit$coef[1]^2)
+```
+
+### Fitting State Space Model
+
+```{r}
+y = log(varve)
+num = length(y)
+mu0=y[1]
+Sigma0=var(y[1:10])
+# likelihood
+Linn=function(para){
+cQ = para[1]
+cR= para[2]
+kf = Kfilter(y, 1, mu0, Sigma0, 1, cQ, cR)
+return(kf$like)
+}
+init.par=c(.1,.1)
+(est = optim(init.par, Linn, NULL, method='BFGS', hessian=TRUE,
+control=list(trace=1,REPORT=1)))
+```
+
+```{r}
+SE = sqrt(diag(solve(est$hessian)))
+
+# Summary of estimation
+estimate = c(sig.w=est$par[1], sig.v=est$par[2])
+cbind(estimate, SE)
+```
+
+Estimate of Rho(1)
+
+```{r}
+-1*estimate[2]*estimate[2]/(2*estimate[2]*estimate[2] + estimate[1]*estimate[1])
+```
+
+We can see that the State Space model estimates match with that of IMA(1,1).
