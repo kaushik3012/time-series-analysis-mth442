@@ -1,0 +1,183 @@
+---
+title: "Assignment 3"
+author: "Kaushik Raj V Nadar (208160499)"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load the required packages
+library(knitr)
+library(astsa)
+library(forecast)
+```
+
+
+# Problem 2
+
+![](Problem2.png)
+
+```{r}
+# Set seed for reproducibility
+set.seed(100)
+
+# True parameter values
+true_phi <- 0.9
+true_theta <- 0.5
+true_sigma2 <- 1
+
+# Sample sizes to consider
+sample_sizes <- c(50, 200, 500)
+
+# Number of realizations
+n_realizations <- 1000
+
+# Function to calculate performance measures
+calc_performance <- function(estimates, true_value, se_est) {
+  mse <- mean((estimates - true_value)^2)
+  mad <- mean(abs(estimates - true_value))
+  coverage <- mean(estimates - 1.96*se_est < true_value & 
+                   true_value < estimates + 1.96*se_est)
+  return(c(mse, mad, coverage))
+}
+
+# Function to calculate performance measures
+calc_performance_sigma <- function(estimates, true_value) {
+  mse <- mean((estimates - true_value)^2)
+  mad <- mean(abs(estimates - true_value))
+  coverage <- NaN
+  return(c(mse, mad, coverage))
+}
+
+# output format
+create_table <- function(results, parameter) {
+  kable(results, 
+        caption = paste("Results for", parameter),
+        col.names = c("MSE", "MAD", "Coverage"),
+        row.names = TRUE,
+        digits = 4)
+}
+
+# Initialize results matrices
+results_phi <- results_theta <- results_sigma2 <- matrix(NA, nrow = 3, ncol = 3)
+colnames(results_phi) <- colnames(results_theta) <- colnames(results_sigma2) <- 
+  c("MSE", "MAD", "Coverage")
+rownames(results_phi) <- rownames(results_theta) <- rownames(results_sigma2) <- 
+  paste0("n=", sample_sizes)
+```
+
+
+```{r}
+# Run simulations for each sample size
+for (i in 1:length(sample_sizes)) {
+  n <- sample_sizes[i]
+  
+  phi_estimates <- theta_estimates <- sigma2_estimates <- phi_se_est <- theta_se_est <- numeric(n_realizations)
+  
+  for (j in 1:n_realizations) {
+    x <- arima.sim(n = n, list(ar = true_phi, ma = true_theta))
+    fit <- arima(x, order = c(1,0,1))
+    phi_estimates[j] <- fit$coef[1]
+    theta_estimates[j] <- fit$coef[2]
+    sigma2_estimates[j] <- fit$sigma2
+    standard_errors <- sqrt(diag(fit$var.coef))
+    phi_se_est[j] <- standard_errors[1]
+    theta_se_est[j] <- standard_errors[2]
+  }
+  
+  # Calculate performance measures
+  results_phi[i,] <- calc_performance(phi_estimates, true_phi, phi_se_est)
+  results_theta[i,] <- calc_performance(theta_estimates, true_theta, theta_se_est)
+  results_sigma2[i,] <- calc_performance_sigma(sigma2_estimates, true_sigma2)
+}
+
+# Display results for phi
+create_table(results_phi, "(phi)")
+
+# Display results for theta
+create_table(results_theta, "(theta)")
+
+# Display results for sigma2
+create_table(results_sigma2, "(sigma2)")
+
+```
+
+
+# Problem 3
+
+![](Problem3.png)
+
+
+```{r}
+# Load the cmort dataset
+data(cmort)
+# Fit AR(2) model using OLS
+reg1 <- ar.ols(cmort, order = 2)
+
+# Print model summary
+cat("OLS Estimates:\n")
+print(reg1)
+```
+
+```{r}
+# Calculate forecasts for 8 week horizon using OLS model
+forecasts <- forecast(reg1, h = 8)
+
+# Print forecasts
+print(forecasts)
+
+# Extract point forecasts and prediction intervals
+point_forecasts <- forecasts$mean
+lower_pi <- forecasts$lower[, 2]  # 95% lower prediction interval
+upper_pi <- forecasts$upper[, 2]  # 95% upper prediction interval
+
+# Print forecasts and prediction intervals
+cat("\nForecasts and 95% Prediction Intervals:\n")
+for (i in 1:8) {
+  cat(sprintf("Week %d: %.4f (%.4f, %.4f)\n", i, point_forecasts[i], lower_pi[i], upper_pi[i]))
+}
+```
+
+```{r}
+# Fit AR(2) model using Yule-Walker
+reg2 <- ar.yw(cmort, order = 2)
+
+cat("\nYule-Walker Estimates:\n")
+print(reg2)
+```
+
+
+```{r}
+# Compare estimates and standard errors
+# Create a data frame for the comparison table
+comparison_df <- data.frame(
+  Parameter = c("AR1", "AR2"),
+  OLS_Estimate = c(reg1$ar[1], reg1$ar[2]),
+  OLS_SE = c(reg1$asy.se.coef$ar[1], reg1$asy.se.coef$ar[2]),
+  YW_Estimate = c(reg2$ar[1], reg2$ar[2]),
+  YW_SE = sqrt(diag(reg2$asy.var.coef))
+)
+
+# Display the comparison table
+kable(comparison_df, 
+      col.names = c("Parameter", "OLS Estimate", "OLS SE", "Yule-Walker Estimate", "Yule-Walker SE"),
+      caption = "Comparison of Estimates and Standard Errors",
+      digits = 4)
+
+# Display variance estimates
+cat("Variance estimate (OLS):", sprintf("%.2f", reg1$var.pred), "\n")
+cat("Variance estimate (Yule-Walker):", sprintf("%.2f", reg2$var.pred))
+```
+
+The two methods produce similar results.
+
+
+
+
+
+
+
